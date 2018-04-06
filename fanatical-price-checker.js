@@ -1,8 +1,12 @@
 // ==UserScript==
 // @name         Fanatical Price Checker
+// @name:zh-CN   Fanatical 跨区价格查询
+// @name:zh-TW   Fanatical 跨區價格查詢
 // @namespace    https://www.fanatical.com/
 // @version      0.2
 // @description  Check the price of different regions for Fanatical.
+// @description:zh-CN 查询不同区域的Fanatical游戏/慈善包的价格
+// @description:zh-TW 查詢不同區域的Fanatical遊戲/慈善包的價格
 // @icon         https://cdn.fanatical.com/production/icons/android-chrome-192x192.png
 // @downloadURL  https://github.com/Thesharing/fanatical-price-checker/raw/master/fanatical-price-checker.js
 // @updateURL    https://github.com/Thesharing/fanatical-price-checker/raw/master/fanatical-price-checker.ver.js
@@ -11,6 +15,7 @@
 // @include      /^https?://www\.fanatical\.com/en/game/.+$
 // @grant        GM_xmlhttpRequest
 // @run-at       document-idle
+
 // ==/UserScript==
 
 var totalNum = 0;
