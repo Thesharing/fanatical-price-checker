@@ -1,16 +1,23 @@
 // ==UserScript==
 // @name         Fanatical Price Checker
-// @namespace    https://www.fanatical.com/en/bundle/
-// @version      0.1
-// @description  Check the price of different regions.
+// @namespace    https://www.fanatical.com/
+// @version      0.2
+// @description  Check the price of different regions for Fanatical.
+// @icon         https://cdn.fanatical.com/production/icons/android-chrome-192x192.png
+// @downloadURL  https://github.com/Thesharing/fanatical-price-checker/raw/master/fanatical-price-checker.js
+// @updateURL    https://github.com/Thesharing/fanatical-price-checker/raw/master/fanatical-price-checker.ver.js
 // @author       Thesharing
 // @include      /^https?://www\.fanatical\.com/en/bundle/.+$
-// @require      https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js
+// @include      /^https?://www\.fanatical\.com/en/game/.+$
 // @grant        GM_xmlhttpRequest
 // @run-at       document-idle
 // ==/UserScript==
 
 var totalNum = 0;
+var priceList = [];
+var regionList = ["USD", "CAD", "EUR", "GBP"];
+var curList = {};
+var urlType = document.URL.split('/')[4];
 
 (function () {
     'use strict';
@@ -58,57 +65,158 @@ function addButton(a) {
     c.appendChild(d);
     f = document.createElement('div');
     f.id = 'checkPriceList';
+    f.className = 'mt-3';
     c.appendChild(f);
 }
 
 function checkPrice() {
-    var bundleName = document.URL.split('/')[5];
-    var regionList = ["USD", "GBP", "EUR", "CAD"];
     var buttonText = document.getElementById('checkPriceButtonText');
     buttonText.innerText = 'Checking Price...';
-    GM_xmlhttpRequest({
-        method: "GET",
-        url: "https://api.fanatical.com/api/products/" + bundleName,
-        onload: function (response) {
-            var bundle_data = JSON.parse(response.responseText);
-            c = document.getElementById('checkPriceList');
-            while (c.firstChild) {
-                c.removeChild(c.firstChild);
+    if (urlType == 'bundle') {
+        var bundleName = document.URL.split('/')[5];
+        GM_xmlhttpRequest({
+            method: "GET",
+            url: "https://api.fanatical.com/api/products/" + bundleName,
+            onload: function (response) {
+                var bundleData = JSON.parse(response.responseText);
+                priceList.length = 0;
+                for (var i = 0; i < bundleData.bundles.length; i++) {
+                    var bundlePrice = {};
+                    for (var j = 0; j < regionList.length; j++) {
+                        var priceItem = {
+                            'price': bundleData.bundles[i].price[regionList[j]] / 100,
+                            'CNY': 0
+                        };
+                        bundlePrice[regionList[j]] = priceItem;
+                    }
+                    priceList.push(bundlePrice);
+                }
+                fetchCurrency(buttonText);
             }
-            totalNum = bundle_data.bundles.length * regionList.length;
-            for (var i = 0; i < bundle_data.bundles.length; i++) {
-                var container = document.createElement('div');
-                c.appendChild(container);
-                var title = document.createElement('h4');
-                title.appendChild(document.createTextNode('Tier ' + (i + 1).toString()));
-                container.appendChild(title);
-                var price = bundle_data.bundles[i].price;
-                for (var j = 0; j < regionList.length; j++) {
-                    var p = price[regionList[j]] / 100;
-                    GM_xmlhttpRequest({
-                        method: "GET",
-                        url: "https://finance.google.cn/finance/converter?a=" + p.toString() + "&from=" + regionList[j] + "&to=CNY",
-                        context: {
-                            'region': regionList[j],
-                            'price': p.toString(),
-                            'container': container,
-                            'number': j
-                        },
-                        onload: function (response) {
-                            var responseDocument = new DOMParser().parseFromString(response.responseText, "text/html");
-                            var result = responseDocument.getElementById('currency_converter_result').innerText;
-                            var price_item = document.createElement('span');
-                            price_item.appendChild(document.createTextNode(result));
-                            response.context.container.appendChild(price_item);
-                            response.context.container.appendChild(document.createElement('br'));
-                            totalNum -= 1;
-                            if (totalNum == 0) {
-                                buttonText.innerText = 'Finished!';
-                            }
-                        }
-                    });
+        });
+    } else if (urlType == 'game') {
+        var gameName = document.URL.split('/')[5];
+        GM_xmlhttpRequest({
+            method: "GET",
+            url: "https://api.fanatical.com/api/products/" + gameName,
+            onload: function (response) {
+                var gameData = JSON.parse(response.responseText);
+                priceList.length = 0;
+                gamePrice = {};
+                for (var i = 0; i < regionList.length; i++) {
+                    var priceItem = {
+                        'price': gameData.price[regionList[i]] / 100,
+                        'CNY': 0
+                    };
+                    gamePrice[regionList[i]] = priceItem;
+                }
+                priceList.push(gamePrice);
+                fetchCurrency(buttonText);
+            }
+        });
+    }
+}
+
+function fetchCurrency(buttonText) {
+    for (var k = 0; k < regionList.length; k++) {
+        GM_xmlhttpRequest({
+            method: "GET",
+            url: "https://finance.google.cn/finance/converter?a=1&from=" + regionList[k] + "&to=CNY",
+            context: {
+                'region': regionList[k],
+            },
+            onload: function (response) {
+                var responseDocument = new DOMParser().parseFromString(response.responseText, "text/html");
+                var result = responseDocument.getElementById('currency_converter_result').innerText;
+                curList[response.context.region] = extractCurrency(result);
+                if (Object.keys(curList).length >= regionList.length) {
+                    buttonText.innerText = 'Finished!';
+                    if (urlType == 'bundle') {
+                        displayBundleResult();
+                    } else if (urlType == 'game') {
+                        displayGameResult();
+                    }
                 }
             }
+        });
+    }
+}
+
+function extractCurrency(str) {
+    return parseFloat(str.trim().split(' ')[3]);
+}
+
+function displayBundleResult() {
+    var cheapList = [];
+    for (var i = 0; i < priceList.length; i++) {
+        var cheapPrice = 10000.0;
+        var cheapRegion = 'USD';
+        for (var j = 0; j < regionList.length; j++) {
+            var priceItem = priceList[i][regionList[j]];
+            priceItem.CNY = (curList[regionList[j]] * priceItem.price);
+            if (priceItem.CNY < cheapPrice) {
+                cheapPrice = priceItem.CNY;
+                cheapRegion = regionList[j];
+            }
         }
-    });
+        cheapList.push(cheapRegion);
+    }
+    // RENDER
+    var c = document.getElementById('checkPriceList');
+    while (c.firstChild) {
+        c.removeChild(c.firstChild);
+    }
+    for (var k = 0; k < priceList.length; k++) {
+        var container = document.createElement('div');
+        c.appendChild(container);
+        var titleText = document.createElement('b');
+        titleText.appendChild(document.createTextNode('Tier ' + (k + 1).toString()));
+        var title = document.createElement('h4');
+        title.appendChild(titleText);
+        container.appendChild(title);
+        for (var l = 0; l < regionList.length; l++) {
+            var priceText;
+            if (regionList[l] == cheapList[k]) {
+                priceText = document.createElement('b');
+            } else {
+                priceText = document.createElement('span');
+            }
+            var priceValue = priceList[k][regionList[l]];
+            priceText.appendChild(document.createTextNode(priceValue.price.toFixed(2) + ' ' + regionList[l] + ' = ' + priceValue.CNY.toFixed(2) + ' CNY'));
+            container.appendChild(priceText);
+            container.appendChild(document.createElement('br'));
+        }
+    }
+}
+
+function displayGameResult() {
+    var cheapPrice = 10000.0;
+    var cheapRegion = 'USD';
+    for (var j = 0; j < regionList.length; j++) {
+        var priceItem = priceList[0][regionList[j]];
+        priceItem.CNY = (curList[regionList[j]] * priceItem.price);
+        if (priceItem.CNY < cheapPrice) {
+            cheapPrice = priceItem.CNY;
+            cheapRegion = regionList[j];
+        }
+    }
+    // RENDER
+    var c = document.getElementById('checkPriceList');
+    while (c.firstChild) {
+        c.removeChild(c.firstChild);
+    }
+    var container = document.createElement('div');
+    c.appendChild(container);
+    for (var l = 0; l < regionList.length; l++) {
+        var priceText;
+        if (regionList[l] == cheapRegion) {
+            priceText = document.createElement('b');
+        } else {
+            priceText = document.createElement('span');
+        }
+        var priceValue = priceList[0][regionList[l]];
+        priceText.appendChild(document.createTextNode(priceValue.price.toFixed(2) + ' ' + regionList[l] + ' = ' + priceValue.CNY.toFixed(2) + ' CNY'));
+        container.appendChild(priceText);
+        container.appendChild(document.createElement('br'));
+    }
 }
