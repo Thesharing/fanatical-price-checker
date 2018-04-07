@@ -3,7 +3,7 @@
 // @name:zh-CN   Fanatical 跨区价格查询
 // @name:zh-TW   Fanatical 跨區價格查詢
 // @namespace    https://www.fanatical.com/
-// @version      0.3
+// @version      0.3.1
 // @description  Check the price of different regions for Fanatical.
 // @description:zh-CN 查询不同区域的Fanatical游戏/慈善包的价格
 // @description:zh-TW 查詢不同區域的Fanatical遊戲/慈善包的價格
@@ -143,7 +143,10 @@ function checkPrice() {
             url: "https://api.fanatical.com/api/products/" + gameName,
             onload: function (response) {
                 var gameData = JSON.parse(response.responseText);
-                var discount = 1 - gameData.current_discount.percent;
+                var discount = 1.0;
+                if('current_discount' in gameData && 'percent'in gameData.current_discount){
+                    discount = 1 - gameData.current_discount.percent;
+                }
                 priceList.length = 0;
                 gamePrice = {};
                 for (var i = 0; i < regionList.length; i++) {
