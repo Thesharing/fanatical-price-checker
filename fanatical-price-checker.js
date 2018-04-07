@@ -9,7 +9,6 @@
 // @description:zh-TW 查詢不同區域的Fanatical遊戲/慈善包的價格
 // @icon         https://cdn.fanatical.com/production/icons/android-chrome-192x192.png
 // @downloadURL  https://github.com/Thesharing/fanatical-price-checker/raw/master/fanatical-price-checker.js
-// @updateURL    https://github.com/Thesharing/fanatical-price-checker/raw/master/fanatical-price-checker.ver.js
 // @author       Thesharing
 // @license      MIT
 // @include      /^https?://www\.fanatical\.com/en/bundle/.+$
